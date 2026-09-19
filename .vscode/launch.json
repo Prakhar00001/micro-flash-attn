@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Pytest All",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Python: Benchmark Suite",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/benchmarks/benchmark_latency_vram.py",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Python: Profile Memory",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/benchmarks/profile_memory.py",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}
