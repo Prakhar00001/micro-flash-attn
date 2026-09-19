@@ -8,11 +8,10 @@ version = "0.1.0"
 description = "A clean-room reproduction of FlashAttention-1 with Triton and PyTorch"
 readme = "README.md"
 authors = [{ name = "Prakhar Saini" }]
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.2.0",
-    "triton>=2.2.0",
     "numpy>=1.24.0",
     "matplotlib>=3.7.0",
     "pandas>=2.0.0"
@@ -22,6 +21,10 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["flash_attn*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
