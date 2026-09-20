@@ -1,11 +1,15 @@
 # micro-flash-attn: Clean-Room FlashAttention-1 Reproduction
 
+<p align="center">
+  <img src="assets/paper_preview.png" alt="FlashAttention Paper Preview" width="95%">
+</p>
+
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
 [![Backend](https://img.shields.io/badge/Kernel-Triton%20%7C%20PyTorch-red.svg)]()
 [![Hardware](https://img.shields.io/badge/Hardware-NVIDIA%20Ampere%2FAda%2FHopper-blue.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
-A clean-room systems reproduction and empirical evaluation of **FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness** (*Dao et al., NeurIPS 2022*).
+A clean-room systems reproduction and empirical evaluation of **FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness** (_Dao et al., NeurIPS 2022_).
 
 This repository implements exact multi-head attention from first principles without relying on third-party attention libraries. It features an $\mathcal{O}(N^2)$ memory-bound PyTorch baseline, a pedagogical CPU/GPU online softmax simulator, a high-performance tiled forward kernel in OpenAI Triton, automated invariance test suites, memory traffic profiling, and scaling benchmarks comparing achieved performance against the original paper.
 
@@ -14,10 +18,11 @@ This repository implements exact multi-head attention from first principles with
 ## 1. Systems Motivation & IO Complexity
 
 ### The GPU Memory Wall
+
 Modern GPU architectures (such as NVIDIA A100, H100, RTX 3090, and RTX 4090) exhibit a massive disparity between compute capability and memory bandwidth:
 
-* **High-Bandwidth Memory (HBM / DRAM):** Large capacity ($24\text{ GB} - 80\text{ GB}$), but limited bandwidth ($\sim 1.0\text{ TB/s}$ on RTX 4090, $\sim 1.5 - 2.0\text{ TB/s}$ on A100).
-* **On-Chip SRAM (Shared Memory / L1 Cache):** Ultra-fast bandwidth ($\sim 19\text{ TB/s}$ on A100), but strictly limited capacity ($\sim 192\text{ KB}$ per Streaming Multiprocessor).
+- **High-Bandwidth Memory (HBM / DRAM):** Large capacity ($24\text{ GB} - 80\text{ GB}$), but limited bandwidth ($\sim 1.0\text{ TB/s}$ on RTX 4090, $\sim 1.5 - 2.0\text{ TB/s}$ on A100).
+- **On-Chip SRAM (Shared Memory / L1 Cache):** Ultra-fast bandwidth ($\sim 19\text{ TB/s}$ on A100), but strictly limited capacity ($\sim 192\text{ KB}$ per Streaming Multiprocessor).
 
 When executing standard Transformer attention:
 
@@ -40,7 +45,9 @@ Standard Attention (Memory-Bandwidth Bound):
 Because arithmetic intensity ($\frac{\text{FLOPs}}{\text{Byte Loaded}}$) is low, compute units (Tensor Cores) sit idle waiting for memory transactions to complete.
 
 ### FlashAttention Tiling & Fused Execution
+
 FlashAttention reformulates the computation to operate entirely within fast on-chip SRAM:
+
 1. **Tiling:** Partition inputs $Q, K, V$ into blocks of size $B_r \times d$ and $B_c \times d$ such that sub-matrices fit comfortably in SM SRAM ($M$).
 2. **Kernel Fusion:** Fuse the matrix multiplications, scaling, causal masking, and softmax reduction into a single kernel call.
 3. **Online Softmax:** Incrementally accumulate the attention output while keeping running maximum and normalization statistics in GPU registers, never writing the intermediate $N \times N$ matrix to HBM.
@@ -62,6 +69,7 @@ FlashAttention-1 (Compute Bound):
 ## 2. Mathematical Foundation: Online Softmax
 
 Standard 3-pass softmax over a row vector $x \in \mathbb{R}^N$ requires traversing the data multiple times:
+
 1. $m = \max_{j} x_j$ (Pass 1: find max to prevent floating-point overflow)
 2. $\ell = \sum_{j} e^{x_j - m}$ (Pass 2: compute normalizer sum)
 3. $p_j = \frac{e^{x_j - m}}{\ell}, \quad O = \sum_{j} p_j V_j$ (Pass 3: calculate weighted sum)
@@ -69,6 +77,7 @@ Standard 3-pass softmax over a row vector $x \in \mathbb{R}^N$ requires traversi
 In FlashAttention, $x$ arrives in discrete tiles $x^{(1)}, x^{(2)}, \dots, x^{(K)}$. The algorithm maintains and updates running statistics $m_i$ and $\ell_i$ across blocks:
 
 ### Iterative Block Update Formulation
+
 Given prior running maximum $m^{(1)}$, normalizer $\ell^{(1)}$, and partial accumulator $O^{(1)}$ from block 1, and newly computed block $x^{(2)}$:
 
 1. **Local Block Reduction:**
@@ -125,11 +134,13 @@ micro-flash-attn/
 ## 4. Setup & Quickstart
 
 ### Prerequisites
-* NVIDIA GPU (Compute Capability $\ge 7.0$: Volta, Turing, Ampere, Ada Lovelace, Hopper)
-* CUDA 11.8+ or 12.x
-* Python 3.10+
+
+- NVIDIA GPU (Compute Capability $\ge 7.0$: Volta, Turing, Ampere, Ada Lovelace, Hopper)
+- CUDA 11.8+ or 12.x
+- Python 3.10+
 
 ### Installation
+
 ```bash
 # 1. Clone repository
 git clone https://github.com/Prakhar00001/micro-flash-attn.git
@@ -144,6 +155,7 @@ pip install -e .
 ```
 
 Verify GPU availability and device attributes:
+
 ```bash
 python -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0)} | Arch: {torch.cuda.get_device_capability(0)} | VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB')"
 ```
@@ -153,10 +165,11 @@ python -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0)} | Arch: {t
 ## 5. Correctness & Invariance Testing
 
 The test suite validates numerical equivalence against standard PyTorch attention and `torch.nn.functional.scaled_dot_product_attention` across:
-* Precision: `torch.float16`, `torch.bfloat16`, `torch.float32`
-* Sequence Lengths: Power-of-two ($128, 512, 1024, 2048$) and arbitrary boundary sizes ($1, 63, 127, 341, 513, 1023$)
-* Head Dimensions: $d \in \{32, 64, 128\}$
-* Modes: Causal autoregressive masking vs. Non-causal bidirectional attention
+
+- Precision: `torch.float16`, `torch.bfloat16`, `torch.float32`
+- Sequence Lengths: Power-of-two ($128, 512, 1024, 2048$) and arbitrary boundary sizes ($1, 63, 127, 341, 513, 1023$)
+- Head Dimensions: $d \in \{32, 64, 128\}$
+- Modes: Causal autoregressive masking vs. Non-causal bidirectional attention
 
 ```bash
 # Run comprehensive numerical invariance tests
@@ -171,12 +184,15 @@ pytest tests/test_edge_cases.py -v -s
 ## 6. Benchmarking & Profiling
 
 ### Memory Allocation Profiler
+
 Isolate and measure the exact peak memory consumed by naive attention versus FlashAttention:
+
 ```bash
 python benchmarks/profile_memory.py
 ```
 
 Expected Output:
+
 ```text
 ============================================================
 Memory Profile: Batch=2, Heads=8, SeqLen=2048, HeadDim=64
@@ -188,21 +204,26 @@ Memory Reduction Factor:                    16.38x
 ```
 
 ### Execution Latency & Achieved TFLOPS
+
 Benchmark kernel execution time, operational TFLOPS, and peak VRAM across sequence lengths:
+
 ```bash
 python benchmarks/benchmark_latency_vram.py
 ```
 
 ### Visualizing Scaling Curves
+
 Generate publication-grade figures:
+
 ```bash
 python benchmarks/plot_results.py
 ```
 
 Generated visual artifacts are saved to `results/figures/`:
-* `latency_scaling.png`: Compares execution runtime scaling.
-* `vram_scaling.png`: Shows the linear $\mathcal{O}(N)$ memory footprint versus quadratic $\mathcal{O}(N^2)$ growth.
-* `tflops_throughput.png`: Visualizes hardware compute saturation across sequence lengths.
+
+- `latency_scaling.png`: Compares execution runtime scaling.
+- `vram_scaling.png`: Shows the linear $\mathcal{O}(N)$ memory footprint versus quadratic $\mathcal{O}(N^2)$ growth.
+- `tflops_throughput.png`: Visualizes hardware compute saturation across sequence lengths.
 
 ---
 
@@ -210,38 +231,46 @@ Generated visual artifacts are saved to `results/figures/`:
 
 Evaluation setup matches the benchmarking parameters described in Dao et al. (2022) for forward-pass attention ($H=16, d=64, \text{FP16}$, Causal Masking enabled).
 
-| Hardware | Seq Len ($N$) | Config ($B, H, d$) | Precision | Metric | Dao et al. (2022) | Reproduction (Triton) | Difference (%) | Empirical Root Cause Analysis |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **A100-SXM4-80GB** | 1024 | $B=64, H=16, d=64$ | FP16 | Latency | $0.62\text{ ms}$ | $0.68\text{ ms}$ | $+9.6\%$ (Slower) | The paper utilizes handcrafted CUDA C++ with `cp.async` register-bypassing shared memory copy pipelines. Triton manages pipeline stages via `@triton.jit(num_stages=3)`, introducing minor compiler instruction overhead. |
-| **A100-SXM4-80GB** | 4096 | $B=16, H=16, d=64$ | FP16 | Latency | $3.80\text{ ms}$ | $4.10\text{ ms}$ | $+7.8\%$ (Slower) | Minor register pressure at $N=4096$ incurs temporary register spills compared to manually double-buffered CUDA PTX. |
-| **A100-SXM4-80GB** | 4096 | $B=16, H=16, d=64$ | FP16 | Peak VRAM | $256.0\text{ MB}$ | $256.0\text{ MB}$ | $0.0\%$ (Exact) | Exact theoretical match: intermediate $N \times N$ matrices are fully eliminated; memory footprint depends strictly on input/output tensor allocations. |
-| **RTX 4090 / 3090** | 2048 | $B=4, H=16, d=64$ | FP16 | Throughput | N/A *(New)* | $82.4\text{ TFLOPS}$ | N/A | Evaluation on consumer architecture. Memory bandwidth saturates earlier ($N \approx 2048$) than on A100 due to narrower memory bus specifications. |
+| Hardware            | Seq Len ($N$) | Config ($B, H, d$) | Precision | Metric     | Dao et al. (2022) | Reproduction (Triton) | Difference (%)    | Empirical Root Cause Analysis                                                                                                                                                                                             |
+| :------------------ | :------------ | :----------------- | :-------- | :--------- | :---------------- | :-------------------- | :---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A100-SXM4-80GB**  | 1024          | $B=64, H=16, d=64$ | FP16      | Latency    | $0.62\text{ ms}$  | $0.68\text{ ms}$      | $+9.6\%$ (Slower) | The paper utilizes handcrafted CUDA C++ with `cp.async` register-bypassing shared memory copy pipelines. Triton manages pipeline stages via `@triton.jit(num_stages=3)`, introducing minor compiler instruction overhead. |
+| **A100-SXM4-80GB**  | 4096          | $B=16, H=16, d=64$ | FP16      | Latency    | $3.80\text{ ms}$  | $4.10\text{ ms}$      | $+7.8\%$ (Slower) | Minor register pressure at $N=4096$ incurs temporary register spills compared to manually double-buffered CUDA PTX.                                                                                                       |
+| **A100-SXM4-80GB**  | 4096          | $B=16, H=16, d=64$ | FP16      | Peak VRAM  | $256.0\text{ MB}$ | $256.0\text{ MB}$     | $0.0\%$ (Exact)   | Exact theoretical match: intermediate $N \times N$ matrices are fully eliminated; memory footprint depends strictly on input/output tensor allocations.                                                                   |
+| **RTX 4090 / 3090** | 2048          | $B=4, H=16, d=64$  | FP16      | Throughput | N/A _(New)_       | $82.4\text{ TFLOPS}$  | N/A               | Evaluation on consumer architecture. Memory bandwidth saturates earlier ($N \approx 2048$) than on A100 due to narrower memory bus specifications.                                                                        |
 
 ---
 
 ## 8. Implementation Details & Systems Engineering Insights
 
 ### SRAM Tiling Geometry
+
 The Triton kernel dynamically assigns tile dimensions based on head dimension $d$:
-* For $d \le 64$: `BLOCK_M = 128`, `BLOCK_N = 64`, `num_warps = 4`
-* For $d = 128$: `BLOCK_M = 64`, `BLOCK_N = 32`, `num_warps = 8`
+
+- For $d \le 64$: `BLOCK_M = 128`, `BLOCK_N = 64`, `num_warps = 4`
+- For $d = 128$: `BLOCK_M = 64`, `BLOCK_N = 32`, `num_warps = 8`
 
 These block sizes balance register occupancy and shared memory limits. If `BLOCK_M` is too large, the GPU runs out of registers per SM, leading to register spilling into local memory and sharp performance drops.
 
 ### FP32 Softmax Accumulator Precision
+
 Even when queries, keys, and values are stored in FP16 or BF16, softmax accumulation must be executed in `float32`:
+
 ```python
 m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
 l_i = tl.zeros([BLOCK_M], dtype=tl.float32)
 acc = tl.zeros([BLOCK_M, BLOCK_D], dtype=tl.float32)
 ```
+
 Accumulating exponentiated values in FP16/BF16 leads to underflow or rounding errors that degrade attention distributions over long sequence lengths. Cast intermediate tiles to FP16/BF16 only during matrix multiplication steps (`tl.dot`) to leverage Tensor Core pipelines.
 
 ### Causal Masking Optimization
+
 In causal mode, keys positioned at index $j > i$ are masked out. For tiles where the minimum key index exceeds the maximum query index, computation can be skipped entirely. Setting loop upper bounds to:
+
 ```python
 hi = tl.minimum((start_m + 1) * BLOCK_M, N_CTX) if IS_CAUSAL else N_CTX
 ```
+
 avoids executing roughly $50\%$ of the matrix multiplications in causal attention, saving substantial compute.
 
 ---
@@ -267,4 +296,5 @@ avoids executing roughly $50\%$ of the matrix multiplications in causal attentio
 ---
 
 ## 10. License
+
 Distributed under the MIT License. See `LICENSE` for more information.
