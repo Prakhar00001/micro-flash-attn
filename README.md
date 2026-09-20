@@ -1,7 +1,7 @@
 # micro-flash-attn: Clean-Room FlashAttention-1 Reproduction
 
 <p align="center">
-  <img src="assets/paper_preview.png" alt="FlashAttention Paper Preview" width="95%">
+  <img src="assets/paper_header.png" alt="FlashAttention Paper Preview" width="95%">
 </p>
 
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
